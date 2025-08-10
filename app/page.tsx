@@ -15,18 +15,21 @@ export default function Home() {
 
     const getInitialSession = async () => {
       try {
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
+        const {
+          data: { session },
+          error,
+        } = await supabase.auth.getSession()
+
         if (error) {
-          console.error('Session error:', error)
-          setError('Failed to load session')
+          console.error("Session error:", error)
+          setError("Failed to load session")
         } else if (mounted) {
           setUser(session?.user ?? null)
         }
       } catch (err) {
-        console.error('Unexpected session error:', err)
+        console.error("Unexpected session error:", err)
         if (mounted) {
-          setError('An unexpected error occurred')
+          setError("An unexpected error occurred")
         }
       } finally {
         if (mounted) {
@@ -41,15 +44,15 @@ export default function Home() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email)
-      
+      console.log("Auth state changed:", event, session?.user?.email)
+
       if (mounted) {
         setUser(session?.user ?? null)
         setError(null)
-        
-        if (event === 'SIGNED_IN') {
+
+        if (event === "SIGNED_IN") {
           // Redirect to dashboard after successful sign in
-          window.location.href = '/dashboard'
+          window.location.href = "/dashboard"
         }
       }
     })
@@ -62,7 +65,7 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading...</p>
@@ -73,11 +76,11 @@ export default function Home() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
         <div className="text-center">
           <p className="text-red-600 mb-4">{error}</p>
-          <button 
-            onClick={() => window.location.reload()} 
+          <button
+            onClick={() => window.location.reload()}
             className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
           >
             Retry

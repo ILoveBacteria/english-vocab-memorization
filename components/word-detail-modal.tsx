@@ -2,14 +2,37 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
-import { Edit, Trash2, Plus, X, Calendar, Target, TrendingUp, Type, Languages, FileText } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import {
+  Edit,
+  Trash2,
+  Plus,
+  X,
+  Calendar,
+  Target,
+  TrendingUp,
+  Type,
+  Languages,
+  FileText,
+  Eye,
+  EyeOff,
+} from "lucide-react"
 import { supabase, type Word } from "@/lib/supabase"
 import { toast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
@@ -27,6 +50,7 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
   const [persianMeaning, setPersianMeaning] = useState(word.persian_meaning)
   const [exampleSentences, setExampleSentences] = useState<string[]>(word.example_sentences || [])
   const [loading, setLoading] = useState(false)
+  const [isMeaningHidden, setIsMeaningHidden] = useState(true)
 
   const accuracy = word.total_attempts > 0 ? Math.round((word.correct_answers / word.total_attempts) * 100) : 0
 
@@ -46,18 +70,18 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
 
   const handleUpdate = async () => {
     setLoading(true)
-    
-    const filteredSentences = exampleSentences.filter(sentence => sentence.trim() !== "")
+
+    const filteredSentences = exampleSentences.filter((sentence) => sentence.trim() !== "")
 
     const { error } = await supabase
-      .from('words')
+      .from("words")
       .update({
         english_word: englishWord.trim(),
         persian_meaning: persianMeaning.trim(),
         example_sentences: filteredSentences,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', word.id)
+      .eq("id", word.id)
 
     if (error) {
       toast({
@@ -80,10 +104,7 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
   const handleDelete = async () => {
     setLoading(true)
 
-    const { error } = await supabase
-      .from('words')
-      .delete()
-      .eq('id', word.id)
+    const { error } = await supabase.from("words").delete().eq("id", word.id)
 
     if (error) {
       toast({
@@ -130,7 +151,11 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex items-center gap-1 border-border text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-xl">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center gap-1 border-border text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-xl bg-transparent"
+                      >
                         <Trash2 className="h-3 w-3" />
                         Delete
                       </Button>
@@ -139,12 +164,18 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
                       <AlertDialogHeader>
                         <AlertDialogTitle className="text-foreground">Are you sure?</AlertDialogTitle>
                         <AlertDialogDescription className="text-muted-foreground">
-                          This action cannot be undone. This will permanently delete the word "{word.english_word}" and all its associated data.
+                          This action cannot be undone. This will permanently delete the word "{word.english_word}" and
+                          all its associated data.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
-                        <AlertDialogCancel className="border-border hover:bg-muted/50 rounded-xl">Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-red-600 hover:bg-red-700 text-white rounded-xl">
+                        <AlertDialogCancel className="border-border hover:bg-muted/50 rounded-xl">
+                          Cancel
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={handleDelete}
+                          className="bg-red-600 hover:bg-red-700 text-white rounded-xl"
+                        >
                           Delete
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -196,7 +227,7 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
                     variant="outline"
                     size="sm"
                     onClick={addExampleSentence}
-                    className="flex items-center gap-1 border-border hover:bg-muted/50 rounded-lg"
+                    className="flex items-center gap-1 border-border hover:bg-muted/50 rounded-lg bg-transparent"
                   >
                     <Plus className="h-3 w-3" />
                     Add Example
@@ -227,18 +258,53 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
             <div className="space-y-4">
               <div>
                 <h3 className="text-2xl font-bold text-foreground mb-2">{word.english_word}</h3>
-                <p className="text-lg text-muted-foreground mb-4">{word.persian_meaning}</p>
-                
+
+                <div className="flex items-center gap-2 mb-4">
+                  {isMeaningHidden ? (
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg text-muted-foreground">{"•".repeat(word.persian_meaning.length)}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsMeaningHidden(false)}
+                        className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg"
+                      >
+                        <Eye className="h-4 w-4 text-blue-500" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <p className="text-lg text-muted-foreground">{word.persian_meaning}</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsMeaningHidden(true)}
+                        className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg"
+                      >
+                        <EyeOff className="h-4 w-4 text-gray-500" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex flex-wrap gap-2 mb-4">
-                  <Badge variant="secondary" className={`flex items-center gap-1 rounded-full ${
-                    accuracy >= 80 ? 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300' : 
-                    accuracy >= 60 ? 'bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-300' : 
-                    'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300'
-                  }`}>
+                  <Badge
+                    variant="secondary"
+                    className={`flex items-center gap-1 rounded-full ${
+                      accuracy >= 80
+                        ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-300"
+                        : accuracy >= 60
+                          ? "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-300"
+                          : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-300"
+                    }`}
+                  >
                     <TrendingUp className="h-3 w-3" />
                     {accuracy}% accuracy
                   </Badge>
-                  <Badge variant="outline" className="flex items-center gap-1 border-border text-muted-foreground rounded-full">
+                  <Badge
+                    variant="outline"
+                    className="flex items-center gap-1 border-border text-muted-foreground rounded-full"
+                  >
                     <Target className="h-3 w-3 text-blue-500" />
                     {word.correct_answers}/{word.total_attempts} correct
                   </Badge>
@@ -316,7 +382,11 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
         <DialogFooter className="gap-3">
           {isEditing ? (
             <>
-              <Button variant="outline" onClick={resetForm} className="border-border hover:bg-muted/50 rounded-xl">
+              <Button
+                variant="outline"
+                onClick={resetForm}
+                className="border-border hover:bg-muted/50 rounded-xl bg-transparent"
+              >
                 Cancel
               </Button>
               <Button onClick={handleUpdate} disabled={loading} className="minimalist-button rounded-xl">
@@ -324,7 +394,9 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
               </Button>
             </>
           ) : (
-            <Button onClick={onClose} className="minimalist-button rounded-xl">Close</Button>
+            <Button onClick={onClose} className="minimalist-button rounded-xl">
+              Close
+            </Button>
           )}
         </DialogFooter>
       </DialogContent>
