@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react"
 import { AuthForm } from "@/components/auth-form"
 import { Dashboard } from "@/components/dashboard"
+import { LandingPage } from "@/components/landing-page"
 import { supabase } from "@/lib/supabase"
 
 export default function Home() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showAuth, setShowAuth] = useState(false)
 
   useEffect(() => {
     let mounted = true
@@ -90,5 +92,13 @@ export default function Home() {
     )
   }
 
-  return user ? <Dashboard /> : <AuthForm />
+  if (user) {
+    return <Dashboard />
+  }
+
+  if (showAuth) {
+    return <AuthForm />
+  }
+
+  return <LandingPage onGetStarted={() => setShowAuth(true)} />
 }
