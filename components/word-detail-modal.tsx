@@ -257,29 +257,31 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
           ) : (
             <div className="space-y-4">
               <div>
-                <h3 className="text-2xl font-bold text-foreground mb-2">{word.english_word}</h3>
+                <h3 className="text-2xl font-bold text-foreground mb-2 break-words">{word.english_word}</h3>
 
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-start gap-2 mb-4">
                   {isMeaningHidden ? (
                     <div className="flex items-center gap-2">
-                      <p className="text-lg text-muted-foreground">{"•".repeat(word.persian_meaning.length)}</p>
+                      <p className="text-lg text-muted-foreground">
+                        {"•".repeat(Math.min(word.persian_meaning.length, 20))}
+                      </p>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setIsMeaningHidden(false)}
-                        className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg"
+                        className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg shrink-0"
                       >
                         <Eye className="h-4 w-4 text-blue-500" />
                       </Button>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <p className="text-lg text-muted-foreground">{word.persian_meaning}</p>
+                    <div className="flex items-start gap-2">
+                      <p className="text-lg text-muted-foreground break-words flex-1">{word.persian_meaning}</p>
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setIsMeaningHidden(true)}
-                        className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg"
+                        className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg shrink-0"
                       >
                         <EyeOff className="h-4 w-4 text-gray-500" />
                       </Button>
@@ -345,7 +347,7 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
                     <div className="space-y-2">
                       {word.example_sentences.map((sentence, index) => (
                         <div key={index} className="p-3 bg-muted/50 rounded-lg text-foreground">
-                          <p className="text-sm">{sentence}</p>
+                          <p className="text-sm break-words">{sentence}</p>
                         </div>
                       ))}
                     </div>

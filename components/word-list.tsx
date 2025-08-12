@@ -4,7 +4,21 @@ import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight, Eye, Calendar, Target, TrendingUp, BookOpen, EyeOff } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  ChevronLeft,
+  ChevronRight,
+  Eye,
+  Calendar,
+  Target,
+  TrendingUp,
+  BookOpen,
+  EyeOff,
+  Search,
+  Filter,
+  SortAsc,
+} from "lucide-react"
 import { supabase, type Word } from "@/lib/supabase"
 import { AddWordModal } from "./add-word-modal"
 import { WordDetailModal } from "./word-detail-modal"
@@ -14,6 +28,9 @@ import { formatDistanceToNow } from "date-fns"
 
 const WORDS_PER_PAGE = 8
 
+type SortOption = "newest" | "oldest" | "alphabetical" | "accuracy_high" | "accuracy_low" | "most_practiced"
+type FilterOption = "all" | "high_accuracy" | "medium_accuracy" | "low_accuracy" | "unpracticed"
+
 export function WordList() {
   const [words, setWords] = useState<Word[]>([])
   const [loading, setLoading] = useState(true)
@@ -21,6 +38,10 @@ export function WordList() {
   const [totalWords, setTotalWords] = useState(0)
   const [selectedWord, setSelectedWord] = useState<Word | null>(null)
   const [hiddenMeanings, setHiddenMeanings] = useState<Set<string>>(new Set())
+
+  const [searchQuery, setSearchQuery] = useState("")
+  const [sortBy, setSortBy] = useState<SortOption>("newest")
+  const [filterBy, setFilterBy] = useState<FilterOption>("all")
 
   const totalPages = Math.ceil(totalWords / WORDS_PER_PAGE)
 
@@ -35,12 +56,53 @@ export function WordList() {
     const from = (currentPage - 1) * WORDS_PER_PAGE
     const to = from + WORDS_PER_PAGE - 1
 
-    const { data, error, count } = await supabase
-      .from("words")
-      .select("*", { count: "exact" })
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .range(from, to)
+    let query = supabase.from("words").select("*", { count: "exact" }).eq("user_id", user.id)
+
+    if (searchQuery.trim()) {
+      query = query.or(`english_word.ilike.%${searchQuery}%,persian_meaning.ilike.%${searchQuery}%`)
+    }
+
+    if (filterBy !== "all") {
+      switch (filterBy) {
+        case "high_accuracy":
+          query = query.gte("correct_answers", 4).gte("total_attempts", 5)
+          break
+        case "medium_accuracy":
+          query = query.gte("correct_answers", 2).gte("total_attempts", 5).lt("correct_answers", 4)
+          break
+        case "low_accuracy":
+          query = query.gte("total_attempts", 5).lt("correct_answers", 2)
+          break
+        case "unpracticed":
+          query = query.eq("total_attempts", 0)
+          break
+      }
+    }
+
+    switch (sortBy) {
+      case "newest":
+        query = query.order("created_at", { ascending: false })
+        break
+      case "oldest":
+        query = query.order("created_at", { ascending: true })
+        break
+      case "alphabetical":
+        query = query.order("english_word", { ascending: true })
+        break
+      case "accuracy_high":
+        query = query.order("correct_answers", { ascending: false }).order("total_attempts", { ascending: false })
+        break
+      case "accuracy_low":
+        query = query.order("correct_answers", { ascending: true }).order("total_attempts", { ascending: true })
+        break
+      case "most_practiced":
+        query = query.order("total_attempts", { ascending: false })
+        break
+    }
+
+    query = query.range(from, to)
+
+    const { data, error, count } = await query
 
     if (!error && data) {
       setWords(data)
@@ -54,7 +116,11 @@ export function WordList() {
 
   useEffect(() => {
     fetchWords()
-  }, [currentPage])
+  }, [currentPage, searchQuery, sortBy, filterBy])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, sortBy, filterBy])
 
   const toggleMeaningVisibility = (wordId: string) => {
     setHiddenMeanings((prev) => {
@@ -114,20 +180,75 @@ export function WordList() {
         </div>
       </div>
 
+      <div className="flex flex-col lg:flex-row gap-4 p-4 bg-muted/30 rounded-xl border border-border">
+        <div className="flex-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search words or meanings..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 h-10 border-border focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
+            />
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={filterBy} onValueChange={(value: FilterOption) => setFilterBy(value)}>
+              <SelectTrigger className="w-[180px] border-border rounded-xl">
+                <SelectValue placeholder="Filter by..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Words</SelectItem>
+                <SelectItem value="high_accuracy">High Accuracy (&gt;=80%)</SelectItem>
+                <SelectItem value="medium_accuracy">Medium Accuracy (40-79%)</SelectItem>
+                <SelectItem value="low_accuracy">Low Accuracy (&lt;40%)</SelectItem>
+                <SelectItem value="unpracticed">Unpracticed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <SortAsc className="h-4 w-4 text-muted-foreground" />
+            <Select value={sortBy} onValueChange={(value: SortOption) => setSortBy(value)}>
+              <SelectTrigger className="w-[180px] border-border rounded-xl">
+                <SelectValue placeholder="Sort by..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="newest">Newest First</SelectItem>
+                <SelectItem value="oldest">Oldest First</SelectItem>
+                <SelectItem value="alphabetical">Alphabetical</SelectItem>
+                <SelectItem value="accuracy_high">High Accuracy</SelectItem>
+                <SelectItem value="accuracy_low">Low Accuracy</SelectItem>
+                <SelectItem value="most_practiced">Most Practiced</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
       {words.length === 0 ? (
         <Card className="minimalist-card">
           <CardContent className="p-8 sm:p-12 text-center">
             <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-purple-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-md">
               <BookOpen className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-3">No words yet</h3>
+            <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-3">
+              {searchQuery || filterBy !== "all" ? "No matching words found" : "No words yet"}
+            </h3>
             <p className="text-muted-foreground mb-6 text-base sm:text-lg max-w-md mx-auto">
-              Start building your vocabulary by adding your first word!
+              {searchQuery || filterBy !== "all"
+                ? "Try adjusting your search or filter criteria."
+                : "Start building your vocabulary by adding your first word!"}
             </p>
-            <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-              <ImportExportModal onWordsImported={fetchWords} />
-              <AddWordModal onWordAdded={fetchWords} />
-            </div>
+            {!searchQuery && filterBy === "all" && (
+              <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
+                <ImportExportModal onWordsImported={fetchWords} />
+                <AddWordModal onWordAdded={fetchWords} />
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -146,33 +267,35 @@ export function WordList() {
                   <CardContent className="p-4 sm:p-6 lg:p-8">
                     <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-2 truncate">
+                        <h3 className="text-xl sm:text-2xl font-bold text-foreground mb-2 break-words">
                           {word.english_word}
                         </h3>
 
-                        <div className="flex items-center gap-2 mb-4">
+                        <div className="flex items-start gap-2 mb-4">
                           {isMeaningHidden ? (
                             <div className="flex items-center gap-2">
                               <div className="text-muted-foreground text-base sm:text-lg">
-                                {"•".repeat(word.persian_meaning.length)}
+                                {"•".repeat(Math.min(word.persian_meaning.length, 20))}
                               </div>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => toggleMeaningVisibility(word.id)}
-                                className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg"
+                                className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg shrink-0"
                               >
                                 <Eye className="h-4 w-4 text-blue-500" />
                               </Button>
                             </div>
                           ) : (
-                            <div className="flex items-center gap-2">
-                              <p className="text-muted-foreground text-base sm:text-lg">{word.persian_meaning}</p>
+                            <div className="flex items-start gap-2">
+                              <p className="text-muted-foreground text-base sm:text-lg break-words flex-1">
+                                {word.persian_meaning}
+                              </p>
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => toggleMeaningVisibility(word.id)}
-                                className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg"
+                                className="h-8 w-8 p-0 hover:bg-muted/50 rounded-lg shrink-0"
                               >
                                 <EyeOff className="h-4 w-4 text-gray-500" />
                               </Button>
@@ -211,7 +334,8 @@ export function WordList() {
 
                         {word.example_sentences && word.example_sentences.length > 0 && (
                           <div className="text-muted-foreground bg-muted/50 p-3 sm:p-4 rounded-xl text-sm sm:text-base">
-                            <strong className="text-foreground">Example:</strong> {word.example_sentences[0]}
+                            <strong className="text-foreground">Example:</strong>{" "}
+                            <span className="break-words">{word.example_sentences[0]}</span>
                             {word.example_sentences.length > 1 && (
                               <span className="ml-2 text-blue-600 dark:text-blue-400 font-medium">
                                 (+{word.example_sentences.length - 1} more)
@@ -221,7 +345,7 @@ export function WordList() {
                         )}
                       </div>
 
-                      <div className="flex lg:flex-col items-center lg:items-end gap-3 lg:gap-4 lg:ml-6">
+                      <div className="flex lg:flex-col items-center lg:items-end gap-3 lg:gap-4 lg:ml-6 shrink-0">
                         <div className="flex items-center gap-2 lg:gap-3">
                           <div
                             className={`w-3 h-3 lg:w-4 lg:h-4 rounded-full ${
