@@ -39,11 +39,20 @@ export function WordList() {
   const [selectedWord, setSelectedWord] = useState<Word | null>(null)
   const [hiddenMeanings, setHiddenMeanings] = useState<Set<string>>(new Set())
 
+  const [searchInput, setSearchInput] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   const [sortBy, setSortBy] = useState<SortOption>("newest")
   const [filterBy, setFilterBy] = useState<FilterOption>("all")
 
   const totalPages = Math.ceil(totalWords / WORDS_PER_PAGE)
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      setSearchQuery(searchInput)
+    }, 300) // 300ms delay
+
+    return () => clearTimeout(debounceTimer)
+  }, [searchInput])
 
   const fetchWords = async () => {
     setLoading(true)
@@ -186,8 +195,8 @@ export function WordList() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search words or meanings..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="pl-10 h-10 border-border focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
             />
           </div>
