@@ -8,8 +8,8 @@ import { ChevronLeft, ChevronRight, Eye, Calendar, Target, TrendingUp, BookOpen,
 import { supabase, type Word } from "@/lib/supabase"
 import { AddWordModal } from "./add-word-modal"
 import { WordDetailModal } from "./word-detail-modal"
-import { CSVImportModal } from "./csv-import-modal"
-import { CSVExportButton } from "./csv-export-button"
+import { ImportExportModal } from "./import-export-modal"
+import { ExportButton } from "./export-button"
 import { formatDistanceToNow } from "date-fns"
 
 const WORDS_PER_PAGE = 8
@@ -108,8 +108,8 @@ export function WordList() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 sm:gap-3">
-          <CSVImportModal onWordsImported={fetchWords} />
-          <CSVExportButton />
+          <ImportExportModal onWordsImported={fetchWords} />
+          <ExportButton />
           <AddWordModal onWordAdded={fetchWords} />
         </div>
       </div>
@@ -125,7 +125,7 @@ export function WordList() {
               Start building your vocabulary by adding your first word!
             </p>
             <div className="flex flex-wrap justify-center gap-2 sm:gap-3">
-              <CSVImportModal onWordsImported={fetchWords} />
+              <ImportExportModal onWordsImported={fetchWords} />
               <AddWordModal onWordAdded={fetchWords} />
             </div>
           </CardContent>

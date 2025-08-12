@@ -1,8 +1,6 @@
 "use client"
 
-import type React from "react"
-
-import { useState } from "react"
+import { useState, useActionState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -12,113 +10,61 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { BookOpen, Mail, Lock, LogIn, UserPlus, Github, Apple } from "lucide-react"
 import { ThemeToggle } from "./theme-toggle"
-import { signIn, signUp, signInWithProvider } from "@/lib/auth"
+import { signInAction, signUpAction } from "@/lib/auth-actions"
+import { supabase } from "@/lib/supabase"
 import { useRouter } from "next/navigation"
 import { toast } from "@/hooks/use-toast"
 
 export function AuthForm() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [loading, setLoading] = useState(false)
   const [socialLoading, setSocialLoading] = useState<string | null>(null)
-  const [error, setError] = useState("")
   const router = useRouter()
 
-  const validateForm = () => {
-    if (!email || !password) {
-      setError("Please fill in all fields")
-      return false
+  const [signInState, signInFormAction] = useActionState(signInAction, null)
+  const [signUpState, signUpFormAction] = useActionState(signUpAction, null)
+
+  useEffect(() => {
+    if (signInState?.success) {
+      toast({
+        title: "Welcome back! ✨",
+        description: "Signed in successfully!",
+      })
+      router.push("/dashboard")
+    } else if (signInState?.error) {
+      toast({
+        title: "Error",
+        description: signInState.error,
+        variant: "destructive",
+      })
     }
+  }, [signInState, router])
 
-    if (!email.includes("@")) {
-      setError("Please enter a valid email address")
-      return false
+  useEffect(() => {
+    if (signUpState?.success) {
+      toast({
+        title: "Account created! 🎉",
+        description: signUpState.success,
+      })
+    } else if (signUpState?.error) {
+      toast({
+        title: "Error",
+        description: signUpState.error,
+        variant: "destructive",
+      })
     }
-
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long")
-      return false
-    }
-
-    return true
-  }
-
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-
-    if (!validateForm()) return
-
-    setLoading(true)
-
-    try {
-      const { data, error } = await signIn(email, password)
-
-      if (error) {
-        setError(error.message || "Failed to sign in")
-        toast({
-          title: "Error",
-          description: error.message || "Failed to sign in",
-          variant: "destructive",
-        })
-      } else if (data?.user) {
-        toast({
-          title: "Welcome back! ✨",
-          description: "Signed in successfully!",
-        })
-        router.push("/dashboard")
-      }
-    } catch (err) {
-      setError("An unexpected error occurred")
-      console.error("Sign in error:", err)
-    }
-
-    setLoading(false)
-  }
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-
-    if (!validateForm()) return
-
-    setLoading(true)
-
-    try {
-      const { data, error } = await signUp(email, password)
-
-      if (error) {
-        setError(error.message || "Failed to create account")
-        toast({
-          title: "Error",
-          description: error.message || "Failed to create account",
-          variant: "destructive",
-        })
-      } else {
-        toast({
-          title: "Account created! 🎉",
-          description: "Please check your email to verify your account.",
-        })
-        setEmail("")
-        setPassword("")
-      }
-    } catch (err) {
-      setError("An unexpected error occurred")
-      console.error("Sign up error:", err)
-    }
-
-    setLoading(false)
-  }
+  }, [signUpState])
 
   const handleSocialSignIn = async (provider: "github" | "google" | "apple") => {
     setSocialLoading(provider)
-    setError("")
 
     try {
-      const { error } = await signInWithProvider(provider)
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      })
 
       if (error) {
-        setError(error.message || `Failed to sign in with ${provider}`)
         toast({
           title: "Error",
           description: error.message || `Failed to sign in with ${provider}`,
@@ -126,7 +72,11 @@ export function AuthForm() {
         })
       }
     } catch (err) {
-      setError("An unexpected error occurred")
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      })
       console.error(`${provider} sign in error:`, err)
     }
 
@@ -174,9 +124,14 @@ export function AuthForm() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {error && (
+            {signInState?.error && (
               <Alert variant="destructive">
-                <AlertDescription>{error}</AlertDescription>
+                <AlertDescription>{signInState.error}</AlertDescription>
+              </Alert>
+            )}
+            {signUpState?.error && (
+              <Alert variant="destructive">
+                <AlertDescription>{signUpState.error}</AlertDescription>
               </Alert>
             )}
 
@@ -256,7 +211,7 @@ export function AuthForm() {
                   </div>
                 </div>
 
-                <form onSubmit={handleSignIn} className="space-y-4">
+                <form action={signInFormAction} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signin-email" className="text-sm font-medium text-foreground">
                       Email Address
@@ -265,13 +220,11 @@ export function AuthForm() {
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500" />
                       <Input
                         id="signin-email"
+                        name="email"
                         type="email"
                         placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
                         className="pl-10 h-12 border-border focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all"
                         required
-                        disabled={loading}
                       />
                     </div>
                   </div>
@@ -283,32 +236,19 @@ export function AuthForm() {
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-500" />
                       <Input
                         id="signin-password"
+                        name="password"
                         type="password"
                         placeholder="Enter your password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
                         className="pl-10 h-12 border-border focus:border-purple-500 focus:ring-purple-500/20 rounded-xl transition-all"
                         required
-                        disabled={loading}
                       />
                     </div>
                   </div>
-                  <Button
-                    type="submit"
-                    className="w-full h-12 minimalist-button rounded-xl font-medium"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Signing in...
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <LogIn className="h-4 w-4" />
-                        Sign In
-                      </div>
-                    )}
+                  <Button type="submit" className="w-full h-12 minimalist-button rounded-xl font-medium">
+                    <div className="flex items-center gap-2">
+                      <LogIn className="h-4 w-4" />
+                      Sign In
+                    </div>
                   </Button>
                 </form>
               </TabsContent>
@@ -371,7 +311,7 @@ export function AuthForm() {
                   </div>
                 </div>
 
-                <form onSubmit={handleSignUp} className="space-y-4">
+                <form action={signUpFormAction} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="signup-email" className="text-sm font-medium text-foreground">
                       Email Address
@@ -380,13 +320,11 @@ export function AuthForm() {
                       <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-blue-500" />
                       <Input
                         id="signup-email"
+                        name="email"
                         type="email"
                         placeholder="Enter your email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
                         className="pl-10 h-12 border-border focus:border-blue-500 focus:ring-blue-500/20 rounded-xl transition-all"
                         required
-                        disabled={loading}
                       />
                     </div>
                   </div>
@@ -398,33 +336,20 @@ export function AuthForm() {
                       <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-purple-500" />
                       <Input
                         id="signup-password"
+                        name="password"
                         type="password"
                         placeholder="Create a password (min 6 characters)"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
                         className="pl-10 h-12 border-border focus:border-purple-500 focus:ring-purple-500/20 rounded-xl transition-all"
                         required
-                        disabled={loading}
                         minLength={6}
                       />
                     </div>
                   </div>
-                  <Button
-                    type="submit"
-                    className="w-full h-12 minimalist-button rounded-xl font-medium"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Creating account...
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <UserPlus className="h-4 w-4" />
-                        Create Account
-                      </div>
-                    )}
+                  <Button type="submit" className="w-full h-12 minimalist-button rounded-xl font-medium">
+                    <div className="flex items-center gap-2">
+                      <UserPlus className="h-4 w-4" />
+                      Create Account
+                    </div>
                   </Button>
                 </form>
               </TabsContent>

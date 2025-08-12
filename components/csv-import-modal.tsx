@@ -14,7 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Upload, FileText, CheckCircle, AlertCircle, Download } from "lucide-react"
+import { Upload, FileText, CheckCircle, AlertCircle, Download, Eye, EyeOff } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "@/hooks/use-toast"
 
@@ -27,6 +27,7 @@ export function CSVImportModal({ onWordsImported }: CSVImportModalProps) {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState<any[]>([])
+  const [showAllRows, setShowAllRows] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -50,7 +51,7 @@ export function CSVImportModal({ onWordsImported }: CSVImportModalProps) {
       const lines = text.split("\n").filter((line) => line.trim())
       const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""))
 
-      const previewData = lines.slice(1, 4).map((line) => {
+      const previewData = lines.slice(1).map((line) => {
         const values = line.split(",").map((v) => v.trim().replace(/"/g, ""))
         const row: any = {}
         headers.forEach((header, index) => {
@@ -60,8 +61,35 @@ export function CSVImportModal({ onWordsImported }: CSVImportModalProps) {
       })
 
       setPreview(previewData)
+      setShowAllRows(false)
     }
     reader.readAsText(file)
+  }
+
+  const parseDate = (dateString: string): string => {
+    if (!dateString || dateString.trim() === "") {
+      return new Date().toISOString()
+    }
+
+    const date = new Date(dateString.trim())
+    if (isNaN(date.getTime())) {
+      return new Date().toISOString()
+    }
+
+    return date.toISOString()
+  }
+
+  const formatDateForDisplay = (dateString: string): string => {
+    if (!dateString || dateString.trim() === "") {
+      return "-"
+    }
+
+    const date = new Date(dateString.trim())
+    if (isNaN(date.getTime())) {
+      return "Invalid Date"
+    }
+
+    return date.toLocaleDateString()
   }
 
   const handleImport = async () => {
@@ -97,7 +125,7 @@ export function CSVImportModal({ onWordsImported }: CSVImportModalProps) {
             row[header] = values[index] || ""
           })
 
-          const createdAt = row["created_at"] ? new Date(row["created_at"]).toISOString() : new Date().toISOString()
+          const createdAt = parseDate(row["created_at"])
 
           return {
             user_id: user.id,
@@ -161,6 +189,8 @@ thank you,متشکرم,"Thank you very much;Thanks for your help",8,7,2024-01-17
     a.click()
     window.URL.revokeObjectURL(url)
   }
+
+  const displayRows = showAllRows ? preview : preview.slice(0, 3)
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -274,7 +304,31 @@ thank you,متشکرم,"Thank you very much;Thanks for your help",8,7,2024-01-17
           {/* Preview */}
           {preview.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-foreground">Preview (First 3 rows)</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-foreground">
+                  Preview {showAllRows ? `(All ${preview.length} rows)` : `(First 3 of ${preview.length} rows)`}
+                </h3>
+                {preview.length > 3 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowAllRows(!showAllRows)}
+                    className="border-border hover:bg-muted/50 rounded-lg bg-transparent"
+                  >
+                    {showAllRows ? (
+                      <>
+                        <EyeOff className="h-4 w-4 mr-2" />
+                        Show Less
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="h-4 w-4 mr-2" />
+                        Show All ({preview.length})
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
               <div className="border border-border rounded-xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -289,7 +343,7 @@ thank you,متشکرم,"Thank you very much;Thanks for your help",8,7,2024-01-17
                       </tr>
                     </thead>
                     <tbody>
-                      {preview.map((row, index) => (
+                      {displayRows.map((row, index) => (
                         <tr key={index} className="border-t border-border">
                           <td className="p-3">{row.english_word || row.english || row.word || "-"}</td>
                           <td className="p-3">{row.persian_meaning || row.persian || row.meaning || "-"}</td>
@@ -301,9 +355,7 @@ thank you,متشکرم,"Thank you very much;Thanks for your help",8,7,2024-01-17
                           </td>
                           <td className="p-3">{row.total_attempts || "0"}</td>
                           <td className="p-3">{row.correct_answers || "0"}</td>
-                          <td className="p-3 text-xs">
-                            {row.created_at ? new Date(row.created_at).toLocaleDateString() : "-"}
-                          </td>
+                          <td className="p-3 text-xs">{formatDateForDisplay(row.created_at)}</td>
                         </tr>
                       ))}
                     </tbody>
