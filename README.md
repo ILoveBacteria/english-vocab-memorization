@@ -10,6 +10,15 @@
 This repository will stay in sync with your deployed chats on [v0.dev](https://v0.dev).
 Any changes you make to your deployed app will be automatically pushed to this repository from [v0.dev](https://v0.dev).
 
+## Screenshots
+
+<div align="center">
+  <img src=".github/images/screenshot_login.jpg" alt="Login Screenshot" width="400" />
+  <img src=".github/images/screenshot_main_light.jpg" alt="Main Light Screenshot" width="400" />
+  <img src=".github/images/screenshot_main_dark.jpg" alt="Main Dark Screenshot" width="400" />
+  <img src=".github/images/screenshot_profile.jpg" alt="Profile Screenshot" width="400" />
+</div>
+
 ## Deployment
 
 Your project is live at:
