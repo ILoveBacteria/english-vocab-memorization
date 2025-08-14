@@ -1,4 +1,4 @@
-# Modern kokonut ui design
+# English Vocabulary memorization
 
 *Automatically synced with your [v0.dev](https://v0.dev) deployments*
 
