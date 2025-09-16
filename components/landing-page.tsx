@@ -129,9 +129,7 @@ export function LandingPage({ onGetStarted }: LandingPageProps) {
               <BookOpen className="h-10 w-10 text-white" />
             </div>
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-6">
-            VocabMaster
-          </h1>
+          <h1 className="text-4xl md:text-6xl font-bold text-slate-900 dark:text-white mb-6">VocabMaster</h1>
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto">
             Master any language vocabulary with intelligent flashcards, spaced repetition, and personalized learning
             paths

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { RotateCcw, Check, X, ArrowLeft, Lightbulb, BookOpen } from 'lucide-react'
+import { RotateCcw, Check, X, ArrowLeft, Lightbulb } from "lucide-react"
 import { supabase, type Word } from "@/lib/supabase"
 import { toast } from "@/hooks/use-toast"
 
@@ -19,6 +19,7 @@ export function FlashcardMode({ onBack }: FlashcardModeProps) {
   const [isFlipped, setIsFlipped] = useState(false)
   const [loading, setLoading] = useState(true)
   const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 })
+  const [recordingAttempt, setRecordingAttempt] = useState(false)
 
   const currentWord = words[currentIndex]
   const progress = words.length > 0 ? ((currentIndex + 1) / words.length) * 100 : 0
@@ -29,17 +30,19 @@ export function FlashcardMode({ onBack }: FlashcardModeProps) {
 
   const fetchWords = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) return
 
       const { data, error } = await supabase
-        .from('words')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: true })
+        .from("words")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: true })
 
       if (error) {
-        console.error('Error fetching words:', error)
+        console.error("Error fetching words:", error)
         toast({
           title: "Error",
           description: "Failed to load words",
@@ -51,7 +54,7 @@ export function FlashcardMode({ onBack }: FlashcardModeProps) {
         setWords(shuffled)
       }
     } catch (err) {
-      console.error('Unexpected error fetching words:', err)
+      console.error("Unexpected error fetching words:", err)
       toast({
         title: "Error",
         description: "An unexpected error occurred",
@@ -65,20 +68,24 @@ export function FlashcardMode({ onBack }: FlashcardModeProps) {
   const recordAttempt = async (isCorrect: boolean) => {
     if (!currentWord) return
 
+    setRecordingAttempt(true)
+
     try {
-      const { data: { user } } = await supabase.auth.getUser()
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
       if (!user) return
 
       // Record the attempt
-      const { error: attemptError } = await supabase.from('quiz_attempts').insert({
+      const { error: attemptError } = await supabase.from("quiz_attempts").insert({
         user_id: user.id,
         word_id: currentWord.id,
         is_correct: isCorrect,
-        attempt_type: 'flashcard'
+        attempt_type: "flashcard",
       })
 
       if (attemptError) {
-        console.error('Error recording attempt:', attemptError)
+        console.error("Error recording attempt:", attemptError)
       }
 
       // Update word statistics
@@ -86,34 +93,36 @@ export function FlashcardMode({ onBack }: FlashcardModeProps) {
       const newCorrectAnswers = (currentWord.correct_answers || 0) + (isCorrect ? 1 : 0)
 
       const { error: updateError } = await supabase
-        .from('words')
+        .from("words")
         .update({
           total_attempts: newTotalAttempts,
           correct_answers: newCorrectAnswers,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', currentWord.id)
+        .eq("id", currentWord.id)
 
       if (updateError) {
-        console.error('Error updating word stats:', updateError)
+        console.error("Error updating word stats:", updateError)
       }
 
       // Update session stats
-      setSessionStats(prev => ({
+      setSessionStats((prev) => ({
         correct: prev.correct + (isCorrect ? 1 : 0),
-        total: prev.total + 1
+        total: prev.total + 1,
       }))
 
       // Move to next card
       nextCard()
     } catch (err) {
-      console.error('Unexpected error recording attempt:', err)
+      console.error("Unexpected error recording attempt:", err)
+    } finally {
+      setRecordingAttempt(false)
     }
   }
 
   const nextCard = () => {
     if (currentIndex < words.length - 1) {
-      setCurrentIndex(prev => prev + 1)
+      setCurrentIndex((prev) => prev + 1)
       setIsFlipped(false)
     } else {
       // Session complete
@@ -160,7 +169,11 @@ export function FlashcardMode({ onBack }: FlashcardModeProps) {
   return (
     <div className="max-w-2xl mx-auto space-y-6 minimalist-animate-in">
       <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={onBack} className="border-border hover:bg-muted/50 rounded-xl">
+        <Button
+          variant="outline"
+          onClick={onBack}
+          className="border-border hover:bg-muted/50 rounded-xl bg-transparent"
+        >
           <ArrowLeft className="h-4 w-4 mr-2 text-blue-500" />
           Back
         </Button>
@@ -171,7 +184,12 @@ export function FlashcardMode({ onBack }: FlashcardModeProps) {
           <Badge variant="secondary" className="bg-muted/50 text-foreground">
             Score: {sessionStats.correct}/{sessionStats.total}
           </Badge>
-          <Button variant="outline" size="sm" onClick={resetSession} className="border-border hover:bg-muted/50 rounded-xl">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={resetSession}
+            className="border-border hover:bg-muted/50 rounded-xl bg-transparent"
+          >
             <RotateCcw className="h-4 w-4 mr-2 text-purple-500" />
             Reset
           </Button>
@@ -181,9 +199,9 @@ export function FlashcardMode({ onBack }: FlashcardModeProps) {
       <Progress value={progress} className="w-full" />
 
       <div className="relative">
-        <Card 
+        <Card
           className={`min-h-96 cursor-pointer transition-all duration-300 minimalist-card ${
-            isFlipped ? 'bg-muted/20' : ''
+            isFlipped ? "bg-muted/20" : ""
           } hover:shadow-md hover:translate-y-[-2px]`}
           onClick={() => setIsFlipped(!isFlipped)}
         >
@@ -191,19 +209,18 @@ export function FlashcardMode({ onBack }: FlashcardModeProps) {
             {!isFlipped ? (
               <div>
                 <Lightbulb className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-                <h2 className="text-4xl font-bold text-foreground mb-4">
-                  {currentWord.english_word}
-                </h2>
+                <h2 className="text-4xl font-bold text-foreground mb-4">{currentWord.english_word}</h2>
                 <p className="text-muted-foreground">Click to reveal meaning</p>
               </div>
             ) : (
               <div className="space-y-6">
-                <h2 className="text-3xl font-bold text-foreground">
-                  {currentWord.english_word}
-                </h2>
-                <div className="text-2xl text-muted-foreground">
-                  {currentWord.persian_meaning}
-                </div>
+                <h2 className="text-3xl font-bold text-foreground">{currentWord.english_word}</h2>
+                <div className="text-2xl text-muted-foreground">{currentWord.persian_meaning}</div>
+                {currentWord.english_meaning && (
+                  <div className="text-lg text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/30 p-3 rounded-lg">
+                    <strong>English:</strong> {currentWord.english_meaning}
+                  </div>
+                )}
                 {currentWord.example_sentences && currentWord.example_sentences.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="font-medium text-sm text-muted-foreground">Examples:</h4>
@@ -226,17 +243,27 @@ export function FlashcardMode({ onBack }: FlashcardModeProps) {
             variant="outline"
             size="lg"
             onClick={() => recordAttempt(false)}
+            disabled={recordingAttempt}
             className="flex items-center gap-2 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 dark:hover:bg-red-950/50 rounded-xl"
           >
-            <X className="h-5 w-5" />
+            {recordingAttempt ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-red-600"></div>
+            ) : (
+              <X className="h-5 w-5" />
+            )}
             I didn't know
           </Button>
           <Button
             size="lg"
             onClick={() => recordAttempt(true)}
+            disabled={recordingAttempt}
             className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white rounded-xl"
           >
-            <Check className="h-5 w-5" />
+            {recordingAttempt ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            ) : (
+              <Check className="h-5 w-5" />
+            )}
             I knew this
           </Button>
         </div>

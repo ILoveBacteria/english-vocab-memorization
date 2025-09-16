@@ -48,6 +48,7 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
   const [isEditing, setIsEditing] = useState(false)
   const [englishWord, setEnglishWord] = useState(word.english_word)
   const [persianMeaning, setPersianMeaning] = useState(word.persian_meaning)
+  const [englishMeaning, setEnglishMeaning] = useState(word.english_meaning || "")
   const [exampleSentences, setExampleSentences] = useState<string[]>(word.example_sentences || [])
   const [loading, setLoading] = useState(false)
   const [isMeaningHidden, setIsMeaningHidden] = useState(true)
@@ -78,6 +79,7 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
       .update({
         english_word: englishWord.trim(),
         persian_meaning: persianMeaning.trim(),
+        english_meaning: englishMeaning.trim() || "English meaning not set",
         example_sentences: filteredSentences,
         updated_at: new Date().toISOString(),
       })
@@ -127,6 +129,7 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
   const resetForm = () => {
     setEnglishWord(word.english_word)
     setPersianMeaning(word.persian_meaning)
+    setEnglishMeaning(word.english_meaning || "")
     setExampleSentences(word.example_sentences || [])
     setIsEditing(false)
   }
@@ -217,6 +220,19 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="edit-english-meaning" className="text-foreground flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-orange-500" />
+                  English Meaning
+                </Label>
+                <Input
+                  id="edit-english-meaning"
+                  value={englishMeaning}
+                  onChange={(e) => setEnglishMeaning(e.target.value)}
+                  placeholder="Enter English meaning/definition"
+                  className="h-10 border-border focus:border-orange-500 focus:ring-orange-500/20 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label className="text-foreground flex items-center gap-2">
                     <FileText className="h-4 w-4 text-green-500" />
@@ -288,6 +304,14 @@ export function WordDetailModal({ word, open, onClose, onWordUpdated }: WordDeta
                     </div>
                   )}
                 </div>
+
+                {word.english_meaning && (
+                  <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-950/30 rounded-xl border border-orange-200 dark:border-orange-800">
+                    <p className="text-orange-800 dark:text-orange-200 text-sm">
+                      <strong>English:</strong> {word.english_meaning}
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex flex-wrap gap-2 mb-4">
                   <Badge

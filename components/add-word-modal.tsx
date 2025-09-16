@@ -1,12 +1,22 @@
 "use client"
 
+import type React from "react"
+
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, X, BookOpen, Type, Languages, FileText } from 'lucide-react'
+import { Plus, X, BookOpen, Type, Languages, FileText } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { toast } from "@/hooks/use-toast"
 
@@ -18,6 +28,7 @@ export function AddWordModal({ onWordAdded }: AddWordModalProps) {
   const [open, setOpen] = useState(false)
   const [englishWord, setEnglishWord] = useState("")
   const [persianMeaning, setPersianMeaning] = useState("")
+  const [englishMeaning, setEnglishMeaning] = useState("")
   const [exampleSentences, setExampleSentences] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -39,8 +50,10 @@ export function AddWordModal({ onWordAdded }: AddWordModalProps) {
     e.preventDefault()
     setLoading(true)
 
-    const { data: { user } } = await supabase.auth.getUser()
-    
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     if (!user) {
       toast({
         title: "Error",
@@ -51,16 +64,15 @@ export function AddWordModal({ onWordAdded }: AddWordModalProps) {
       return
     }
 
-    const filteredSentences = exampleSentences.filter(sentence => sentence.trim() !== "")
+    const filteredSentences = exampleSentences.filter((sentence) => sentence.trim() !== "")
 
-    const { error } = await supabase
-      .from('words')
-      .insert({
-        user_id: user.id,
-        english_word: englishWord.trim(),
-        persian_meaning: persianMeaning.trim(),
-        example_sentences: filteredSentences,
-      })
+    const { error } = await supabase.from("words").insert({
+      user_id: user.id,
+      english_word: englishWord.trim(),
+      persian_meaning: persianMeaning.trim(),
+      english_meaning: englishMeaning.trim(),
+      example_sentences: filteredSentences,
+    })
 
     if (error) {
       toast({
@@ -75,6 +87,7 @@ export function AddWordModal({ onWordAdded }: AddWordModalProps) {
       })
       setEnglishWord("")
       setPersianMeaning("")
+      setEnglishMeaning("")
       setExampleSentences([])
       setOpen(false)
       onWordAdded()
@@ -97,9 +110,7 @@ export function AddWordModal({ onWordAdded }: AddWordModalProps) {
           <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-blue-500 rounded-xl flex items-center justify-center mx-auto shadow-md">
             <BookOpen className="h-6 w-6 text-white" />
           </div>
-          <DialogTitle className="text-2xl font-bold text-center text-foreground">
-            Add New Word
-          </DialogTitle>
+          <DialogTitle className="text-2xl font-bold text-center text-foreground">Add New Word</DialogTitle>
           <DialogDescription className="text-center text-muted-foreground">
             Add a new English word with its Persian meaning and optional example sentences.
           </DialogDescription>
@@ -135,6 +146,20 @@ export function AddWordModal({ onWordAdded }: AddWordModalProps) {
               />
             </div>
             <div className="space-y-3">
+              <Label htmlFor="english-meaning" className="text-sm font-medium text-foreground flex items-center gap-2">
+                <FileText className="h-4 w-4 text-orange-500" />
+                English Meaning *
+              </Label>
+              <Input
+                id="english-meaning"
+                value={englishMeaning}
+                onChange={(e) => setEnglishMeaning(e.target.value)}
+                placeholder="Enter English meaning/definition"
+                className="h-12 border-border focus:border-orange-500 focus:ring-orange-500/20 rounded-xl transition-all"
+                required
+              />
+            </div>
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium text-foreground flex items-center gap-2">
                   <FileText className="h-4 w-4 text-green-500" />
@@ -145,7 +170,7 @@ export function AddWordModal({ onWordAdded }: AddWordModalProps) {
                   variant="outline"
                   size="sm"
                   onClick={addExampleSentence}
-                  className="flex items-center gap-2 border-border hover:bg-muted/50 rounded-lg transition-all"
+                  className="flex items-center gap-2 border-border hover:bg-muted/50 rounded-lg transition-all bg-transparent"
                 >
                   <Plus className="h-3 w-3" />
                   Add Example
@@ -173,19 +198,15 @@ export function AddWordModal({ onWordAdded }: AddWordModalProps) {
             </div>
           </div>
           <DialogFooter className="gap-3">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={() => setOpen(false)}
               className="border-border hover:bg-muted/50 rounded-xl transition-all"
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={loading}
-              className="minimalist-button rounded-xl px-6"
-            >
+            <Button type="submit" disabled={loading} className="minimalist-button rounded-xl px-6">
               {loading ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

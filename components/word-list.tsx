@@ -1,11 +1,14 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from "@/components/ui/use-toast"
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,6 +21,8 @@ import {
   Search,
   Filter,
   SortAsc,
+  X,
+  Check,
 } from "lucide-react"
 import { supabase, type Word } from "@/lib/supabase"
 import { AddWordModal } from "./add-word-modal"
@@ -38,6 +43,7 @@ export function WordList() {
   const [totalWords, setTotalWords] = useState(0)
   const [selectedWord, setSelectedWord] = useState<Word | null>(null)
   const [hiddenMeanings, setHiddenMeanings] = useState<Set<string>>(new Set())
+  const [loadingWords, setLoadingWords] = useState<Set<string>>(new Set())
 
   const [searchInput, setSearchInput] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
@@ -46,13 +52,23 @@ export function WordList() {
 
   const totalPages = Math.ceil(totalWords / WORDS_PER_PAGE)
 
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      setSearchQuery(searchInput)
-    }, 300) // 300ms delay
+  const handleSearch = () => {
+    setSearchQuery(searchInput)
+  }
 
-    return () => clearTimeout(debounceTimer)
-  }, [searchInput])
+  const handleSearchKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSearch()
+    }
+  }
+
+  useEffect(() => {
+    fetchWords()
+  }, [currentPage, searchQuery, sortBy, filterBy])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, sortBy, filterBy])
 
   const fetchWords = async () => {
     setLoading(true)
@@ -123,14 +139,6 @@ export function WordList() {
     setLoading(false)
   }
 
-  useEffect(() => {
-    fetchWords()
-  }, [currentPage, searchQuery, sortBy, filterBy])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, sortBy, filterBy])
-
   const toggleMeaningVisibility = (wordId: string) => {
     setHiddenMeanings((prev) => {
       const newSet = new Set(prev)
@@ -152,6 +160,64 @@ export function WordList() {
     if (percentage >= 80) return "text-green-600 bg-green-100 dark:bg-green-900/30"
     if (percentage >= 60) return "text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30"
     return "text-red-600 bg-red-100 dark:bg-red-900/30"
+  }
+
+  const recordAttempt = async (wordId: string, isCorrect: boolean) => {
+    setLoadingWords((prev) => new Set(prev).add(wordId))
+
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      const word = words.find((w) => w.id === wordId)
+      if (!word) return
+
+      // Record the attempt
+      const { error: attemptError } = await supabase.from("quiz_attempts").insert({
+        user_id: user.id,
+        word_id: wordId,
+        is_correct: isCorrect,
+        attempt_type: "vocabulary_review",
+      })
+
+      if (attemptError) {
+        console.error("Error recording attempt:", attemptError)
+      }
+
+      // Update word statistics
+      const newTotalAttempts = (word.total_attempts || 0) + 1
+      const newCorrectAnswers = (word.correct_answers || 0) + (isCorrect ? 1 : 0)
+
+      const { error: updateError } = await supabase
+        .from("words")
+        .update({
+          total_attempts: newTotalAttempts,
+          correct_answers: newCorrectAnswers,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", wordId)
+
+      if (updateError) {
+        console.error("Error updating word stats:", updateError)
+      } else {
+        // Refresh the words list to show updated stats
+        fetchWords()
+        toast({
+          title: isCorrect ? "Great!" : "Keep practicing!",
+          description: isCorrect ? "Word marked as known" : "Word marked for more practice",
+        })
+      }
+    } catch (err) {
+      console.error("Unexpected error recording attempt:", err)
+    } finally {
+      setLoadingWords((prev) => {
+        const newSet = new Set(prev)
+        newSet.delete(wordId)
+        return newSet
+      })
+    }
   }
 
   if (loading) {
@@ -197,8 +263,17 @@ export function WordList() {
               placeholder="Search words or meanings..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="pl-10 h-10 border-border focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
+              onKeyPress={handleSearchKeyPress}
+              className="pl-10 pr-12 h-10 border-border focus:border-blue-500 focus:ring-blue-500/20 rounded-xl"
             />
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSearch}
+              className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0 hover:bg-muted/50 rounded-lg"
+            >
+              <Search className="h-4 w-4 text-muted-foreground" />
+            </Button>
           </div>
         </div>
 
@@ -312,6 +387,14 @@ export function WordList() {
                           )}
                         </div>
 
+                        {word.english_meaning && word.english_meaning !== "English meaning not set" && (
+                          <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-950/30 rounded-xl border border-orange-200 dark:border-orange-800">
+                            <p className="text-orange-800 dark:text-orange-200 text-sm font-medium">
+                              <strong>English:</strong> {word.english_meaning}
+                            </p>
+                          </div>
+                        )}
+
                         <div className="flex flex-wrap gap-2 sm:gap-3 mb-4">
                           <Badge
                             variant="secondary"
@@ -363,6 +446,40 @@ export function WordList() {
                           ></div>
                           <span className="text-base lg:text-lg font-bold text-foreground">{accuracy}%</span>
                         </div>
+
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => recordAttempt(word.id, false)}
+                            disabled={loadingWords.has(word.id)}
+                            className="flex items-center gap-1 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 dark:hover:bg-red-950/50 rounded-xl text-xs px-2 py-1"
+                          >
+                            {loadingWords.has(word.id) ? (
+                              <div className="animate-spin rounded-full h-3 w-3 border-b border-red-600"></div>
+                            ) : (
+                              <X className="h-3 w-3" />
+                            )}
+                            <span className="hidden sm:inline">Don't know</span>
+                            <span className="sm:hidden">✗</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => recordAttempt(word.id, true)}
+                            disabled={loadingWords.has(word.id)}
+                            className="flex items-center gap-1 text-green-600 hover:text-green-700 border-green-200 hover:border-green-300 dark:hover:bg-green-950/50 rounded-xl text-xs px-2 py-1"
+                          >
+                            {loadingWords.has(word.id) ? (
+                              <div className="animate-spin rounded-full h-3 w-3 border-b border-green-600"></div>
+                            ) : (
+                              <Check className="h-3 w-3" />
+                            )}
+                            <span className="hidden sm:inline">I know</span>
+                            <span className="sm:hidden">✓</span>
+                          </Button>
+                        </div>
+
                         <Button
                           variant="outline"
                           size="sm"
